@@ -1,5 +1,6 @@
 #!/usr/bin/Rscript
 options(warn=-1)
+options(digits=2)
 #Sys.setenv(LANG="EN")
 suppressMessages(library(data.table))
 suppressMessages(library(gdata))
@@ -88,29 +89,35 @@ extract.data <- function (filename) ###Индия!
             num <- unlist(strsplit(y[4], "(`_|`)"))
             Delta[i] <- as.numeric(num[1]) - as.numeric(y[3])
             Error[i] <- na.to.0(as.numeric(num[2]))
-            Bond[i] <- y[2]
+            Bond[i]  <- y[2]
         }
-        qq <- quantile(Delta, c(0.25,0.75), names=FALSE)
-        Low.Q=qq[1]-kpar(l.ys)*diff(qq)
-        High.Q=qq[2]+kpar(l.ys)*diff(qq)
-        data.frame(Bond=Bond, Delta=Delta,
-                   Error=Error, Av.Error=mean(Error),
-                   Low.Q=Low.Q, High.Q=High.Q, 
-                   K1=k1, Rwp=rwp, Outlier = (Delta > (High.Q + 2 * Error * opt$Errors)) |
-                                             (Delta < (Low.Q - 2 * Error * opt$Errors)),
-                   Bad.Bond=FALSE)            
+        data.frame(K1=k1, Rwp=rwp, Bond=Bond, Delta=Delta, Error=Error)
+    }
+
+calc.outliers <- function(table, k.fun = kpar, use.errors.flag = opt$Errors)
+    {
+        l       <- length(table$Delta)
+        qq      <- quantile(table$Delta, c(0.25, 0.75), names=FALSE)
+        table[["Av.Error"]] <- mean(table$Error)
+        table[["Low.Q"]]    <- qq[1] - k.fun(l) * diff(qq)
+        table[["High.Q"]]   <- qq[2] + k.fun(l) * diff(qq)
+        table[["Outlier"]]  <- (table$Delta > (table$High.Q + 2 * table$Error * use.errors.flag)) |
+                               (table$Delta < (table$Low.Q  - 2 * table$Error * use.errors.flag))
+        table
     }
 
 cat("Reading data..\n")
 
 if (opt$Plot){
-    errors.table <- read.table(directory, row.names=FALSE, sep="\t")
+    errors.table <- read.table(directory, sep="\t", header=TRUE)
+    directory <- sub("[.].{2,3}","",directory)
 }else{
     topas.outs <- list.files(directory, full.names=TRUE, pattern="*.(out|OUT)$")
     errors.table <- rbindlist(Map(extract.data, topas.outs))}
 
 cat("Some calculations...\n")
 
+errors.table <- rbindlist(by(errors.table, errors.table$K1,   calc.outliers))
 errors.table <- rbindlist(by(errors.table, errors.table$Bond, function(x) {x[["Bad.Bond"]] <-  any(x[["Outlier"]]); return(x)}))
 
 errors.summary <- rbindlist(by(errors.table, errors.table$K1, 
@@ -119,18 +126,13 @@ errors.summary <- rbindlist(by(errors.table, errors.table$K1,
                                 Outliers=sum(x[["Outlier"]]))}))
 
 ## Plotting settings
-
-PlotBreaks <- function(x){
-    breaks <- seq(0, 100, by=10)
-    names(breaks) <- attr(breaks,"labels")
-    breaks
-}
  
-p <- ggplot(data=errors.table, aes(x=K1, y=Delta)) + theme_bw()   # +  scale_x_continuous (breaks=PlotBreaks)
+p <- ggplot(data=errors.table, aes(x=K1, y=Delta)) + theme_bw()
+
 if ( opt$Errors &  sum(errors.table$Av.Error) >  0) {
 	p <- p +
 		geom_ribbon(aes(ymin=High.Q-2*Av.Error, ymax=High.Q+2*Av.Error, y=NULL), fill="#999999") +
-		geom_ribbon(aes(ymin=Low.Q-2*Av.Error, ymax=Low.Q+2*Av.Error, y=NULL), fill="#999999") 
+		geom_ribbon(aes(ymin=Low.Q -2*Av.Error, ymax=Low.Q +2*Av.Error, y=NULL), fill="#999999") 
 	}else {
             p <- p +  geom_line(aes(y = High.Q), linetype="dashed") + geom_line(aes(y = Low.Q), linetype="dashed") }
 	
@@ -147,7 +149,8 @@ if ( opt$Errors &  sum(errors.table$Av.Error) >  0) {
 
 cat("Plotting and tables writing...\n")
 
-write.table(errors.table[order(errors.table$K1,errors.table$Bond),], paste(directory, name.su, "_rtable.dat", sep=""), row.names=FALSE, sep="\t")	
+write.table(format(errors.table[order(errors.table$K1,errors.table$Bond),], digits=6),
+            paste(directory, name.su, "_rtable.dat", sep=""), row.names=FALSE, sep="\t", quote = FALSE)	
 write.fwf(errors.summary[order(errors.summary$K1)], paste(directory, name.su,"_summary.txt", sep=""))
 
 ggsave(p, file= paste(directory, name.su, "_plot.pdf", sep = ""), width=opt$width, height=opt$height)
