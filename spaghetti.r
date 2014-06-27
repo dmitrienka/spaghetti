@@ -121,9 +121,17 @@ errors.table <- rbindlist(by(errors.table, errors.table$K1,   calc.outliers))
 errors.table <- rbindlist(by(errors.table, errors.table$Bond, function(x) {x[["Bad.Bond"]] <-  any(x[["Outlier"]]); return(x)}))
 
 errors.summary <- rbindlist(by(errors.table, errors.table$K1, 
-	function(x){ data.frame(K1=x[["K1"]][1], Rwp=x[["Rwp"]][1],
-	RMS=round(sqrt(sum((x[["Delta"]])^2/length(x[["Delta"]]))), digits=4),
-                                Outliers=sum(x[["Outlier"]]))}))
+	function(x){ 
+		data.frame(	
+			K1=x[["K1"]][1], 
+			Rwp=x[["Rwp"]][1],
+			RMS=round(sqrt(sum((x[["Delta"]])^2/length(x[["Delta"]]))), digits=4),
+			Outliers=sum(x[["Outlier"]])
+		)
+	}
+))
+counts <- by(errors.table, errors.table$K1, nrow)
+cat("IQR multiplier(s) used", sapply(unique(counts), function(x) {sprintf("%.4f", kpar(x))}),"\n")
 
 ## Plotting settings
  
