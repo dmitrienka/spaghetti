@@ -1,6 +1,5 @@
 #!/usr/bin/Rscript
 options(warn=-1)
-options(digits=2)
 #Sys.setenv(LANG="EN")
 suppressMessages(library(data.table))
 suppressMessages(library(gdata))
@@ -61,10 +60,10 @@ if (opt$Kpar < 0){
 
 
 
-if (opt$Angles) {pattern <- "Angle_Restrain(_Breakable)?"
+if (opt$Angles) {pattern <- "^\\s*Angle_Restrain(_Breakable)?"
                  name.su <- "_angles"
              }else{
-                 pattern = "Distance_Restrain(_Breakable|_Morse)?"
+                 pattern = "^\\s*Distance_Restrain(_Breakable|_Morse)?"
                  name.su <- "_bonds"}
 
 na.to.0 <- function(x) {if (is.na(x)) 0 else x}
@@ -72,12 +71,13 @@ na.to.0 <- function(x) {if (is.na(x)) 0 else x}
 extract.data <- function (filename) ###Индия!
     {
         xs <- readLines(filename)
-#        xs <- gsub("'.*","",xs) #kill comments
+        xs <- gsub("^\\s*'.*","",xs, perl=TRUE) #kill full-line comments
         k1 <- unlist(strsplit(grep("penalties_weighting_K1",xs, value=TRUE), "[[:space:]]+"))
         k1 <- as.numeric(k1[length(k1)])
-        rwp <-  unlist(strsplit(grep("r_wp", xs, value=TRUE)[1],  "[[:space:]]+"))
-        rwp <- as.numeric(rwp[which(rwp=="r_wp") +1])
-        ys <- grep(pattern,xs, value=TRUE)
+		rwp <- gsub("^.*r_wp\\s+([0-9.]+).*$", "\\1", grep("r_wp", xs, perl=TRUE, value=TRUE), perl=TRUE)[1]
+		rwp <- as.numeric(rwp)
+		# print(rwp)
+        ys <- grep(pattern,xs, value=TRUE, perl=TRUE)
         ys <- ys[!grepl("H\\d",ys, perl=TRUE)]
         ys <- strsplit(ys, "([ \t]*,[][ \t]*)|[()][ \t]*")
         l.ys  <- length(ys)
@@ -116,7 +116,7 @@ if (opt$Plot){
     errors.table <- rbindlist(Map(extract.data, topas.outs))}
 
 cat("Some calculations...\n")
-
+# print(errors.table)
 errors.table <- rbindlist(by(errors.table, errors.table$K1,   calc.outliers))
 errors.table <- rbindlist(by(errors.table, errors.table$Bond, function(x) {x[["Bad.Bond"]] <-  any(x[["Outlier"]]); return(x)}))
 
