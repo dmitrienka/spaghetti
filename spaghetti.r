@@ -23,9 +23,9 @@ k.table <- c(5.62619251369954 ,3.59689767105988, 2.99683950381941, 2.91419362363
 
 
 option_list <- list(
-    make_option(c("-W", "--width"),type="double", default=12,
+    make_option(c("-W", "--width"),type="double", default=15,
                 help="Width of the output file, [default %default]"),
-    make_option(c("-H", "--height"), type="double",default=7,
+    make_option(c("-H", "--height"), type="double",default=10,
                 help="Height of the output file, [default %default]"),
     make_option(c("-p", "--Plot"), action="store_true", default=FALSE,
                 help="Use existing _rtable.dat for plotting, [default %default]"),
@@ -161,6 +161,6 @@ write.table(format(errors.table[order(errors.table$K1,errors.table$Bond),], digi
             paste(directory, name.su, "_rtable.dat", sep=""), row.names=FALSE, sep="\t", quote = FALSE)	
 write.fwf(errors.summary[order(errors.summary$K1)], paste(directory, name.su,"_summary.txt", sep=""))
 
-ggsave(p, file= paste(directory, name.su, "_plot.pdf", sep = ""), width=opt$width, height=opt$height)
-ggsave(p, file= paste(directory, name.su, "_plot.eps", sep = ""), width=opt$width, height=opt$height)
+ggsave(p, file= paste(directory, name.su, "_plot.pdf", sep = ""), width=opt$width, height=opt$height, units="cm")
+ggsave(p, file= paste(directory, name.su, "_plot.eps", sep = ""), width=opt$width, height=opt$height, units="cm")
 
